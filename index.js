@@ -10,12 +10,13 @@ let frames = document.getElementById('frames');
 var width = 320;    // We will scale the photo width to this
 var height = 300;
 
-let setupFrameInterval = setInterval(() => {
+let setupFrameInterval = setInterval(generateFrame, 1000);
+
+function generateFrame() {
     var elem = document.createElement("img");
     elem.src = takepicture();
     frames.appendChild(elem);
-}, 1000);
-
+}
 
 let recordingTimeMS = 15000;
 function log(msg) {
@@ -27,7 +28,7 @@ function wait(delayInMS) {
 function startRecording(stream, lengthInMS) {
     let recorder = new MediaRecorder(stream);
     let data = [];
-    setupFrameInterval();
+    // setupFrameInterval;
     recorder.ondataavailable = event => data.push(event.data);
     recorder.start();
     log(recorder.state + " for " + (lengthInMS / 1000) + " seconds...");
@@ -75,25 +76,25 @@ startButton.addEventListener("click", function () {
     stop(preview.srcObject);
 }, false);
 
-preview.addEventListener('canplay', function (ev) {
-    console.log('canplay');
-    if (!streaming) {
-        height = video.videoHeight / (video.videoWidth / width);
+// preview.addEventListener('canplay', function (ev) {
+//     console.log('canplay');
+//     if (!streaming) {
+//         height = video.videoHeight / (video.videoWidth / width);
 
-        // Firefox currently has a bug where the height can't be read from
-        // the video, so we will make assumptions if this happens.
+//         // Firefox currently has a bug where the height can't be read from
+//         // the video, so we will make assumptions if this happens.
 
-        if (isNaN(height)) {
-            height = width / (4 / 3);
-        }
+//         if (isNaN(height)) {
+//             height = width / (4 / 3);
+//         }
 
-        preview.setAttribute('width', width);
-        preview.setAttribute('height', height);
-        canvas.setAttribute('width', width);
-        canvas.setAttribute('height', height);
-        streaming = true;
-    }
-}, false);
+//         preview.setAttribute('width', width);
+//         preview.setAttribute('height', height);
+//         canvas.setAttribute('width', width);
+//         canvas.setAttribute('height', height);
+//         streaming = true;
+//     }
+// }, false);
 
 function clearphoto() {
     var context = canvas.getContext('2d');
@@ -118,10 +119,3 @@ function takepicture() {
         clearphoto();
     }
 }
-
-
-
-takepictureButton.addEventListener('click', function (ev) {
-    takepicture();
-    ev.preventDefault();
-}, false);
