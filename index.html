@@ -6,153 +6,101 @@
     <meta charset="utf-8" />
     <meta name="viewport"
         content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
+
     <style>
-        .scrn,
-        .vid {
-            border-radius: 3px !important;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
-            width: 100%;
-            height: auto;
-            margin-left: auto;
-            margin-right: auto;
-            padding: 6px;
-            background: #5cad55;
+        body {
+            font: 14px "Open Sans", "Arial", sans-serif;
         }
 
-        .scrn {
-            margin-left: 5px !important;
+        video {
+            margin-top: 2px;
+            border: 1px solid black;
         }
 
-        #myCanvas,
-        #video {
-            width: 100%;
-            height: auto;
-            margin-left: auto;
-            margin-right: auto;
-        }
-
-        .result,
-        .bttn {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0;
-        }
-
-        .bttn {
-            padding-top: 5px;
-        }
-
-        .b1,
-        .b2,
-        .b3,
-        .b4 {
-            display: inline-block;
+        .button {
+            cursor: pointer;
+            display: block;
+            width: 160px;
+            border: 1px solid black;
+            font-size: 16px;
             text-align: center;
+            padding-top: 2px;
+            padding-bottom: 4px;
+            color: white;
+            background-color: darkgreen;
             text-decoration: none;
-            margin: 2px;
-            border: solid 1px transparent;
-            border-radius: 4px;
-            padding: 0.5em 1em;
-            color: #ffffff;
-            background-color: #9555af;
         }
 
-        .b1:active,
-        .b2:active,
-        .b3:active,
-        .b4:active {
-            transform: translateY(1px);
-            filter: saturate(150%);
+        h2 {
+            margin-bottom: 4px;
         }
 
-        .b1:hover,
-        .b2:hover,
-        .b3:hover,
-        .b4:hover,
-        .b1:focus,
-        .b2:focus,
-        .b3:focus,
-        .b4:focus {
-            color: #9555af;
-            border-color: currentColor;
-            background-color: white;
+        .left {
+            margin-right: 10px;
+            float: left;
+            width: 160px;
+            padding: 0px;
+        }
+
+        .right {
+            margin-left: 10px;
+            float: left;
+            width: 160px;
+            padding: 0px;
+        }
+
+        .bottom {
+            clear: both;
+            padding-top: 10px;
+        }
+
+        .display-none {
+            display: none;
         }
     </style>
 </head>
 
 <body>
 
-    <div class="camera">
-        <video id="video">Video stream not available.</video>
-        <button id="startbutton">Take photo</button>
+    <p>Click the "Start" button to begin video recording for a few seconds. You can stop
+        the video by clicking the creatively-named "Stop" button. The "Download"
+        button will download the received data (although it's in a raw, unwrapped form
+        that isn't very useful).
+    </p>
+    <br>
+    <div class="left">
+        <div id="startButton" class="button">
+            Start
+        </div>
+        <div id="takepictureButton" class="button">
+            Takepicture
+        </div>
+        <h2>Preview</h2>
+        <video id="preview" width="160" height="120" autoplay muted></video>
+    </div>
+    <div class="right">
+        <div id="stopButton" class="button">
+            Stop
+        </div>
+        <h2>Recording</h2>
+        <video id="recording" width="160" height="120" controls></video>
+        <a id="downloadButton" class="button">
+            Download
+        </a>
+    </div>
+    <div class="bottom">
+        <pre id="log"></pre>
     </div>
 
-    <canvas id="canvas">
+
+    <div id="frames">
+
+    </div>
+    <canvas id="canvas" class="display-none">
     </canvas>
-    <div class="output">
+    <div class="output display-none">
         <img id="photo" alt="The screen capture will appear in this box.">
     </div>
-
-
-    <!-- <script>
- 
-let video;
-let webcamStream;
- 
-    function startWebcam() {
- 
-      navigator.mediaDevices.getUserMedia({
-        audio: true,
-        video: true
-      }).then((stream) => {
-        video = document.querySelector('#video');
-        video.srcObject = stream;
-        video.play();
- 
-        webcamStream = stream;
-      }).catch((error) => {
-        console.log('navigator.getUserMedia error: ', error);
-      });
-    }
-    function stopWebcam() {
-          webcamStream.getTracks()[0].stop(); 
-          webcamStream.getTracks()[1].stop(); 
-    } 
-var canvas, ctx;
- 
-function init() {
-  // Получить холст и получить контекст для
-  // рисования в нём
-  canvas = document.getElementById("myCanvas");
-  ctx = canvas.getContext('2d');
-}
- 
-function snapshot() {
-   // Рисует текущее изображение из видео элемента в холст
-  ctx.drawImage(video, 0,0, canvas.width, canvas.height);
-        }
-//---------------------
-// Сохранение файла с jQuery
-//---------------------		
-$("#saveDrawing").click(function () {
-//Выберите холст с идентификатором «canvas» и преобразуйте его в URL-адрес данных.
-//Тип MIME, поддерживаемый почти всеми существующими браузерами, - PNG.
-//Однако в зависимости от браузера могут быть доступны другие типы MIME.
-    var dataURL = document.getElementById("myCanvas").toDataURL("image/png");
-//Создать новый элемент привязки
-    var imga = document.createElement("a");
-//Сделайте его значение href как URL данных, полученный от canvas
-    imga.href = dataURL;
-//Это устанавливает имя файла по умолчанию
-    imga.download = "myImage.png";
-//Прикрепить якорь к body
-    document.body.appendChild(imga);
-//Активfwbz функциb щелчка, которая активирует URL-адрес данных и позволит пользователю сохранить изображение
-    imga.click();
-});
-</script>	 -->
-
     <script src="index.js"></script>
 </body>
 

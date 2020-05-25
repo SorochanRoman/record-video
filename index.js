@@ -1,102 +1,127 @@
+let preview = document.getElementById("preview");
+let recording = document.getElementById("recording");
+let startButton = document.getElementById("startButton");
+let stopButton = document.getElementById("stopButton");
+let takepictureButton = document.getElementById("takepictureButton");
+let downloadButton = document.getElementById("downloadButton");
+let logElement = document.getElementById("log");
+let canvas = document.getElementById('canvas');
+let frames = document.getElementById('frames');
+var width = 320;    // We will scale the photo width to this
+var height = 300;
 
-(function () {
-    console.log('run')
+let setupFrameInterval = setInterval(() => {
+    var elem = document.createElement("img");
+    elem.src = takepicture();
+    frames.appendChild(elem);
+}, 1000);
 
-    // The width and height of the captured photo. We will set the
-    // width to the value defined here, but the height will be
-    // calculated based on the aspect ratio of the input stream.
 
-    var width = 320;    // We will scale the photo width to this
-    var height = 0;     // This will be computed based on the input stream
+let recordingTimeMS = 15000;
+function log(msg) {
+    logElement.innerHTML += msg + "\n";
+}
+function wait(delayInMS) {
+    return new Promise(resolve => setTimeout(resolve, delayInMS));
+}
+function startRecording(stream, lengthInMS) {
+    let recorder = new MediaRecorder(stream);
+    let data = [];
+    setupFrameInterval();
+    recorder.ondataavailable = event => data.push(event.data);
+    recorder.start();
+    log(recorder.state + " for " + (lengthInMS / 1000) + " seconds...");
 
-    // |streaming| indicates whether or not we're currently streaming
-    // video from the camera. Obviously, we start at false.
+    let stopped = new Promise((resolve, reject) => {
+        recorder.onstop = resolve;
+        recorder.onerror = event => reject(event.name);
+    });
 
-    var streaming = false;
+    let recorded = wait(lengthInMS).then(
+        () => recorder.state == "recording" && recorder.stop()
+    );
 
-    // The various HTML elements we need to configure or control. These
-    // will be set by the startup() function.
+    return Promise.all([
+        stopped,
+        recorded
+    ])
+        .then(() => data);
+}
+function stop(stream) {
+    stream.getTracks().forEach(track => track.stop());
+    clearInterval(setupFrameInterval);
+}
+startButton.addEventListener("click", function () {
+    navigator.mediaDevices.getUserMedia({
+        video: true,
+        audio: true
+    }).then(stream => {
+        preview.srcObject = stream;
+        downloadButton.href = stream;
+        preview.captureStream = preview.captureStream || preview.mozCaptureStream;
+        return new Promise(resolve => preview.onplaying = resolve);
+    }).then(() => startRecording(preview.captureStream(), recordingTimeMS))
+        .then(recordedChunks => {
+            let recordedBlob = new Blob(recordedChunks, { type: "video/webm" });
+            recording.src = URL.createObjectURL(recordedBlob);
+            downloadButton.href = recording.src;
+            downloadButton.download = "RecordedVideo.webm";
 
-    var video = null;
-    var canvas = null;
-    var photo = null;
-    var startbutton = null;
+            log("Successfully recorded " + recordedBlob.size + " bytes of " +
+                recordedBlob.type + " media.");
+        })
+        .catch(log);
+}, false); stopButton.addEventListener("click", function () {
+    stop(preview.srcObject);
+}, false);
 
-    function startup() {
-        video = document.getElementById('video');
-        canvas = document.getElementById('canvas');
-        photo = document.getElementById('photo');
-        startbutton = document.getElementById('startbutton');
+preview.addEventListener('canplay', function (ev) {
+    console.log('canplay');
+    if (!streaming) {
+        height = video.videoHeight / (video.videoWidth / width);
 
-        navigator.mediaDevices.getUserMedia({ video: true, audio: false })
-            .then(function (stream) {
-                video.srcObject = stream;
-                video.play();
-            })
-            .catch(function (err) {
-                console.log("An error occurred: " + err);
-            });
+        // Firefox currently has a bug where the height can't be read from
+        // the video, so we will make assumptions if this happens.
 
-        video.addEventListener('canplay', function (ev) {
-            if (!streaming) {
-                height = video.videoHeight / (video.videoWidth / width);
+        if (isNaN(height)) {
+            height = width / (4 / 3);
+        }
 
-                // Firefox currently has a bug where the height can't be read from
-                // the video, so we will make assumptions if this happens.
-
-                if (isNaN(height)) {
-                    height = width / (4 / 3);
-                }
-
-                video.setAttribute('width', width);
-                video.setAttribute('height', height);
-                canvas.setAttribute('width', width);
-                canvas.setAttribute('height', height);
-                streaming = true;
-            }
-        }, false);
-
-        startbutton.addEventListener('click', function (ev) {
-            takepicture();
-            ev.preventDefault();
-        }, false);
-
-        clearphoto();
+        preview.setAttribute('width', width);
+        preview.setAttribute('height', height);
+        canvas.setAttribute('width', width);
+        canvas.setAttribute('height', height);
+        streaming = true;
     }
+}, false);
 
-    // Fill the photo with an indication that none has been
-    // captured.
+function clearphoto() {
+    var context = canvas.getContext('2d');
+    context.fillStyle = "#AAA";
+    context.fillRect(0, 0, canvas.width, canvas.height);
 
-    function clearphoto() {
-        var context = canvas.getContext('2d');
-        context.fillStyle = "#AAA";
-        context.fillRect(0, 0, canvas.width, canvas.height);
+    var data = canvas.toDataURL('image/png');
+    photo.setAttribute('src', data);
+}
+
+function takepicture() {
+    var context = canvas.getContext('2d');
+    if (width && height) {
+        canvas.width = width;
+        canvas.height = height;
+        context.drawImage(preview, 0, 0, width, height);
 
         var data = canvas.toDataURL('image/png');
         photo.setAttribute('src', data);
+        return data;
+    } else {
+        clearphoto();
     }
+}
 
-    // Capture a photo by fetching the current contents of the video
-    // and drawing it into a canvas, then converting that to a PNG
-    // format data URL. By drawing it on an offscreen canvas and then
-    // drawing that to the screen, we can change its size and/or apply
-    // other changes before drawing it.
 
-    function takepicture() {
-        var context = canvas.getContext('2d');
-        if (width && height) {
-            canvas.width = width;
-            canvas.height = height;
-            context.drawImage(video, 0, 0, width, height);
 
-            var data = canvas.toDataURL('image/png');
-            photo.setAttribute('src', data);
-        } else {
-            clearphoto();
-        }
-    }
-
-    // Set up our event listener to run the startup process
-    // once loading is complete.
-    window.addEventListener('load', startup, false);
-})();
+takepictureButton.addEventListener('click', function (ev) {
+    takepicture();
+    ev.preventDefault();
+}, false);
